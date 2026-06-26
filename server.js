@@ -9,7 +9,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6I4bjKB1mQ_6x1KuHxcemo1WEFeGcW1dGaJucB5iYT05Q";
+const apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6JMG1NE5u5kFsWLwAqVM7IbPAw5igVEeWH4FSdAhZKjyg";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 app.post('/api/analyze', async (req, res) => {
