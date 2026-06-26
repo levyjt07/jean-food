@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartFridge AI - Premium Grid v2.5</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-neutral-950 text-zinc-100 min-h-screen pb-12 selection:bg-amber-500 selection:text-neutral-950">
+
+    <header class="border-b border-neutral-800 bg-neutral-900/50 backdrop-blur-md sticky top-0 z-50 p-5">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent flex items-center gap-2">
+                🍳 SMARTFRIDGE AI
+            </h1>
+            <span class="text-[10px] border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full font-mono uppercase tracking-widest bg-amber-500/5">
+                Grid Engine v2.5
+            </span>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto mt-10 px-4">
+        
+        <div class="max-w-2xl mx-auto bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-[0_0_50px_-12px_rgba(245,158,11,0.15)] mb-10">
+            <label class="block text-xs font-bold tracking-widest text-amber-400/80 uppercase mb-3">
+                Input Image Database
+            </label>
+            
+            <div class="border-2 border-dashed border-neutral-700 hover:border-amber-500/50 rounded-xl p-8 text-center transition-all duration-300 cursor-pointer relative bg-neutral-950/50 group" id="dropzone">
+                <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                
+                <div id="uploadPrompt" class="space-y-2">
+                    <div class="mx-auto w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center group-hover:border-amber-500/30 transition-colors">
+                        <span class="text-amber-400 text-xl font-light">+</span>
+                    </div>
+                    <p class="text-sm text-zinc-300 font-medium">Klik atau drag & drop foto kulkasmu</p>
+                    <p class="text-xs text-zinc-500 font-mono">JPG, PNG, WEBP</p>
+                </div>
+                
+                <img id="imagePreview" class="hidden max-h-72 mx-auto rounded-lg mt-2 shadow-lg border border-neutral-800">
+            </div>
+
+            <button id="scanBtn" onclick="analyzeFridge()" 
+                    class="w-full mt-6 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-600 hover:to-amber-500 text-neutral-950 font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-[0_4px_20px_rgba(245,158,11,0.2)] tracking-wider uppercase text-xs cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none">
+                Mulai Analisis Koki AI
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-center py-12 space-y-4">
+            <div class="relative inline-flex">
+                <div class="w-10 h-10 bg-amber-500/20 rounded-full absolute animate-ping"></div>
+                <div class="animate-spin inline-block w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full text-amber-500"></div>
+            </div>
+            <p class="text-amber-400 text-xs font-mono tracking-widest uppercase animate-pulse">Sabar ye...</p>
+        </div>
+
+        <div id="resultGrid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </main>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    uploadPrompt.classList.add('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function analyzeFridge() {
+            const file = fileInput.files[0];
+            const loading = document.getElementById('loading');
+            const resultGrid = document.getElementById('resultGrid');
+            const scanBtn = document.getElementById('scanBtn');
+
+            if (!file) {
+                alert('Tolong unggah foto isi kulkas terlebih dahulu!');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+            resultGrid.classList.add('hidden');
+            resultGrid.innerHTML = ''; // Reset output sebelumnya
+            scanBtn.disabled = true;
+
+            try {
+                const base64Image = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+
+                const response = await fetch('http://localhost:3000/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image, mimeType: file.type })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Penanganan Defensive Coding: Bersihkan sisa backticks jika AI tidak sengaja menyertakannya
+                    let rawJsonText = data.result.trim();
+                    if (rawJsonText.startsWith("```json")) {
+                        rawJsonText = rawJsonText.replace(/^```json/, "").replace(/```$/, "");
+                    } else if (rawJsonText.startsWith("```")) {
+                        rawJsonText = rawJsonText.replace(/^```/, "").replace(/```$/, "");
+                    }
+
+                    // Parsing string teks dari AI menjadi objek Array JSON asli
+                    const recipes = JSON.parse(rawJsonText.trim());
+                    
+                    let gridHTML = '';
+
+                    // Lakukan looping data untuk membuat Box/Card resep secara dinamis
+                    recipes.forEach(recipe => {
+                        // Kumpulkan list bahan ke dalam tag <li>
+                        const ingredientsList = recipe.ingredients.map(ing => `<li>• ${ing}</li>`).join('');
+                        // Kumpulkan list langkah ke dalam tag <li> dengan nomor
+                        const stepsList = recipe.steps.map((step, index) => `<li><span class="text-amber-400 font-mono mr-1">${index + 1}.</span> ${step}</li>`).join('');
+
+                        // Susun HTML blueprint untuk tiap Box
+                        gridHTML += `
+                            <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-[0_4px_30px_rgba(245,158,11,0.03)] hover:border-amber-500/40 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)] transition-all duration-300 flex flex-col justify-between">
+                                <div>
+                                    <div class="mb-3">
+                                        <span class="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono px-2.5 py-1 rounded-md uppercase tracking-wider inline-block">
+                                            ${recipe.cuisine}
+                                        </span>
+                                    </div>
+                                    
+                                    <h4 class="text-base font-bold text-white mb-4 tracking-wide border-b border-neutral-800/60 pb-2 uppercase text-amber-100">
+                                        ${recipe.name}
+                                    </h4>
+                                    
+                                    <div class="mb-4 bg-neutral-950/40 p-3 rounded-xl border border-neutral-800/40">
+                                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Bahan yang Dibutuhkan:</span>
+                                        <ul class="text-xs text-zinc-300 space-y-1.5 leading-relaxed">
+                                            ${ingredientsList}
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-neutral-950/20 p-3 rounded-xl border border-neutral-800/20 mt-2">
+                                    <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Instruksi Memasak:</span>
+                                    <ol class="text-xs text-zinc-400 space-y-2 leading-relaxed">
+                                        ${stepsList}
+                                    </ol>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    // Suntikkan kumpulan box ke dalam grid layout di screen
+                    resultGrid.innerHTML = gridHTML;
+                    resultGrid.classList.remove('hidden');
+
+                } else {
+                    alert('Error dari Backend Server: ' + (data.error || "Gagal memproses gambar."));
+                }
+
+            } catch (error) {
+                console.error("Frontend Connection Error:", error);
+                alert('Gagal memproses data JSON dari AI. Coba lakukan scan ulang.');
+            } finally {
+                loading.classList.add('hidden');
+                scanBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
