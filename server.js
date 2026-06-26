@@ -9,7 +9,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6I4bjKB1mQ_6x1KuHxcemo1WEFeGcW1dGaJucB5iYT05Q";
+const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 app.post('/api/analyze', async (req, res) => {
@@ -20,15 +20,14 @@ app.post('/api/analyze', async (req, res) => {
             return res.status(400).json({ error: 'Image data or MIME type is missing!' });
         }
 
-        // KUNCI UTAMA: Memaksa model mengeluarkan JSON murni melalui generationConfig
         const model = genAI.getGenerativeModel({ 
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             generationConfig: { responseMimeType: "application/json" }
         });
 
-        const prompt = `Analyze the contents of the refrigerator in this photo. Based on the available ingredients, provide 3 to 5 feasible recipe recommendations and group them by their respective cuisine type (e.g., "Indonesian Recipe", "Chinese Recipe", "Italian Recipe", "American Recipe", "Mexican Recipe", etc., depending on ingredient compatibility).
+        const prompt = `Analyze the contents of the refrigerator in this photo. Based on the available ingredients, provide 3 to 5 feasible recipe recommendations and group them by their respective cuisine type (e.g., "Indonesian Recipe", "Chinese Recipe", "Italian Recipe", "American Recipe", "Mexican Recipe", etc.).
 
-You MUST return a JSON Array with the exact structure shown below:
+You MUST return a valid JSON Array where each object contains "cuisine", "name", "ingredients" (as an array of strings), and "steps" (as an array of strings). Follow this exact structural schema:
 [
   {
     "cuisine": "Italian Recipe",
@@ -48,12 +47,20 @@ You MUST return a JSON Array with the exact structure shown below:
         const response = await result.response;
         const text = response.text();
 
-        console.log("✅ Data received from Gemini. Parsing structure...");
+        console.log("📥 Raw response received from Gemini. Sanitizing data...");
         
-        // Memastikan data yang dikirim ke frontend sudah berupa Array Objek yang valid
-        const parsedRecipes = JSON.parse(text.trim());
+        // 🛡️ PERTAHANAN UTAMA: Bersihkan teks dari segala jenis bungkusan markdown jika AI bandel
+        let cleanText = text.trim();
+        if (cleanText.startsWith("```json")) {
+            cleanText = cleanText.replace(/^```json/, "").replace(/```$/, "");
+        } else if (cleanText.startsWith("```")) {
+            cleanText = cleanText.replace(/^```/, "").replace(/```$/, "");
+        }
+
+        // Parse teks yang sudah bersih menjadi JSON Object aman
+        const parsedRecipes = JSON.parse(cleanText.trim());
         
-        // Kirim response sukses bersama data yang sudah matang
+        console.log("✅ Data successfully parsed! Sending to frontend.");
         res.json({ success: true, recipes: parsedRecipes });
 
     } catch (error) {
