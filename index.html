@@ -31,7 +31,7 @@
     <main class="max-w-5xl mx-auto mt-10 px-4">
         
         <div class="max-w-2xl mx-auto bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-[0_0_50px_-12px_rgba(245,158,11,0.15)] mb-10">
-            <label class="block text-xs font-bold tracking-widest text-amber-400/80 uppercase mb-3">
+            <label class="block text-[10px] font-bold tracking-widest text-amber-400/80 uppercase mb-3 font-mono">
                 Input Image Database
             </label>
             
@@ -42,7 +42,7 @@
                     <div class="mx-auto w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center group-hover:border-amber-500/30 transition-colors">
                         <span class="text-amber-400 text-xl font-light">+</span>
                     </div>
-                    <p class="text-sm text-zinc-300 font-medium">Klik atau drag & drop foto kulkasmu</p>
+                    <p class="text-sm text-zinc-300 font-medium">Click or drag & drop your fridge photo</p>
                     <p class="text-xs text-zinc-500 font-mono">JPG, PNG, WEBP</p>
                 </div>
                 
@@ -51,7 +51,7 @@
 
             <button id="scanBtn" onclick="analyzeFridge()" 
                     class="w-full mt-6 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-600 hover:to-amber-500 text-neutral-950 font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-[0_4px_20px_rgba(245,158,11,0.2)] tracking-wider uppercase text-xs cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none">
-                Mulai Analisis Koki AI
+                Start AI Chef Analysis
             </button>
         </div>
 
@@ -60,7 +60,7 @@
                 <div class="w-10 h-10 bg-amber-500/20 rounded-full absolute animate-ping"></div>
                 <div class="animate-spin inline-block w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full text-amber-500"></div>
             </div>
-            <p class="text-amber-400 text-xs font-mono tracking-widest uppercase animate-pulse">Sabar ye...</p>
+            <p class="text-amber-400 text-xs font-mono tracking-widest uppercase animate-pulse">Analyzing... Please wait</p>
         </div>
 
         <div id="resultGrid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -92,13 +92,13 @@
             const scanBtn = document.getElementById('scanBtn');
 
             if (!file) {
-                alert('Tolong unggah foto isi kulkas terlebih dahulu!');
+                alert('Please upload an image of your fridge contents first!');
                 return;
             }
 
             loading.classList.remove('hidden');
             resultGrid.classList.add('hidden');
-            resultGrid.innerHTML = ''; // Reset output sebelumnya
+            resultGrid.innerHTML = ''; 
             scanBtn.disabled = true;
 
             try {
@@ -117,28 +117,15 @@
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    // Penanganan Defensive Coding: Bersihkan sisa backticks jika AI tidak sengaja menyertakannya
-                    let rawJsonText = data.result.trim();
-                    if (rawJsonText.startsWith("```json")) {
-                        rawJsonText = rawJsonText.replace(/^```json/, "").replace(/```$/, "");
-                    } else if (rawJsonText.startsWith("```")) {
-                        rawJsonText = rawJsonText.replace(/^```/, "").replace(/```$/, "");
-                    }
-
-                    // Parsing string teks dari AI menjadi objek Array JSON asli
-                    const recipes = JSON.parse(rawJsonText.trim());
-                    
+                // Memeriksa status sukses pengiriman object JSON dari server backend
+                if (response.ok && data.success) {
+                    const recipes = data.recipes; 
                     let gridHTML = '';
 
-                    // Lakukan looping data untuk membuat Box/Card resep secara dinamis
                     recipes.forEach(recipe => {
-                        // Kumpulkan list bahan ke dalam tag <li>
                         const ingredientsList = recipe.ingredients.map(ing => `<li>• ${ing}</li>`).join('');
-                        // Kumpulkan list langkah ke dalam tag <li> dengan nomor
                         const stepsList = recipe.steps.map((step, index) => `<li><span class="text-amber-400 font-mono mr-1">${index + 1}.</span> ${step}</li>`).join('');
 
-                        // Susun HTML blueprint untuk tiap Box
                         gridHTML += `
                             <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-[0_4px_30px_rgba(245,158,11,0.03)] hover:border-amber-500/40 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)] transition-all duration-300 flex flex-col justify-between">
                                 <div>
@@ -153,7 +140,7 @@
                                     </h4>
                                     
                                     <div class="mb-4 bg-neutral-950/40 p-3 rounded-xl border border-neutral-800/40">
-                                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Bahan yang Dibutuhkan:</span>
+                                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2 font-mono">Ingredients Required:</span>
                                         <ul class="text-xs text-zinc-300 space-y-1.5 leading-relaxed">
                                             ${ingredientsList}
                                         </ul>
@@ -161,7 +148,7 @@
                                 </div>
                                 
                                 <div class="bg-neutral-950/20 p-3 rounded-xl border border-neutral-800/20 mt-2">
-                                    <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2">Instruksi Memasak:</span>
+                                    <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-2 font-mono">Cooking Instructions:</span>
                                     <ol class="text-xs text-zinc-400 space-y-2 leading-relaxed">
                                         ${stepsList}
                                     </ol>
@@ -170,17 +157,16 @@
                         `;
                     });
 
-                    // Suntikkan kumpulan box ke dalam grid layout di screen
                     resultGrid.innerHTML = gridHTML;
                     resultGrid.classList.remove('hidden');
 
                 } else {
-                    alert('Error dari Backend Server: ' + (data.error || "Gagal memproses gambar."));
+                    alert('Backend Server Error: ' + (data.error || "Unable to process the image."));
                 }
 
             } catch (error) {
-                console.error("Frontend Connection Error:", error);
-                alert('Gagal memproses data JSON dari AI. Coba lakukan scan ulang.');
+                console.error("Frontend Integration Error:", error);
+                alert('Failed to connect to the server or display the data structure.');
             } finally {
                 loading.classList.add('hidden');
                 scanBtn.disabled = false;
@@ -189,4 +175,3 @@
     </script>
 </body>
 </html>
-
