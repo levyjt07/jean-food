@@ -9,7 +9,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const apiKey = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
+const apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6I4bjKB1mQ_6x1KuHxcemo1WEFeGcW1dGaJucB5iYT05Q";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 app.post('/api/analyze', async (req, res) => {
@@ -21,7 +21,7 @@ app.post('/api/analyze', async (req, res) => {
         }
 
         const model = genAI.getGenerativeModel({ 
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.5-flash',
             generationConfig: { responseMimeType: "application/json" }
         });
 
